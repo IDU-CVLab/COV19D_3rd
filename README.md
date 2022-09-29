@@ -3,6 +3,6 @@
 * The methodology used in the segmentation part is traditional segmentation methods as well as UNet based segmentation. In the classification part a Convolutional Neural Network (CNN) was used to take the final diagnosis decisions.
 
 # Dependencies
-Numpy == 1.19.5
-CV2 == 4.5.4
-Tensorflow == 2.5.0
+Numpy == 1.19.5 </br>
+CV2 == 4.5.4 </br>
+Tensorflow == 2.5.0 </br>
