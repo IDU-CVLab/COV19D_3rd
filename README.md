@@ -1,3 +1,5 @@
+[![DOI:10.48550/arXiv.2210.02992](http://img.shields.io/badge/DOI-10.1101/2021.01.08.425840-B31B1B.svg)](https://doi.org/10.48550/arXiv.2210.02992)
+
 # Introduction
 * The main purpose in this study is to propose a pipeline for COVID-19 detection from a big and challenging database of Computed Tomography (CT) images. The proposed pipeline includes a segmentation part, a region of interest extraction part, and a classifier part. The code in this repo includes the whole pipeline.
 * The segmentation part can be found [here](https://github.com/IDU-CVLab/Images_Preprocessing_2nd). 
