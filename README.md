@@ -11,10 +11,10 @@ CV2 == 4.5.4 </br>
 Tensorflow == 2.5.0 </br>
 
 # Cite
-If you find the Code helpful, please consider citing the preprint at:
-@article{morani2022covid,
-  title={COVID-19 Detection Using Segmentation, Region Extraction and Classification Pipeline},
-  author={Morani, Kenan},
-  journal={arXiv preprint arXiv:2210.02992},
-  year={2022}
+If you find the Code helpful, please consider citing the preprint at: </br>
+@article{morani2022covid,   </br>
+  title={COVID-19 Detection Using Segmentation, Region Extraction and Classification Pipeline},     </br>
+  author={Morani, Kenan},    </br>
+  journal={arXiv preprint arXiv:2210.02992},      </br>
+  year={2022}     </br>
 }
