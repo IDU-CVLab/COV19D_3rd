@@ -5,6 +5,9 @@
 * The segmentation part can be found [here](https://github.com/IDU-CVLab/Images_Preprocessing_2nd). 
 * In the classification part, a Convolutional Neural Network (CNN) was used to take the final diagnosis decisions.
 
+# Web-app
+The model is already deployed for prediciton using grayscale images at slices level [here] (https://kenanmorani-covid-19deployment-pipeline-app-82q4v6.streamlit.app/) 
+
 # Dependencies
 numpy==1.21.6 </br>
 tensorflow==2.9.2 </br>
