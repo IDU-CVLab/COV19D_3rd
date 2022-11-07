@@ -6,9 +6,14 @@
 * In the classification part, a Convolutional Neural Network (CNN) was used to take the final diagnosis decisions.
 
 # Dependencies
-Numpy == 1.19.5 </br>
-CV2 == 4.5.4 </br>
-Tensorflow == 2.5.0 </br>
+numpy==1.21.6 </br>
+tensorflow==2.9.2 </br>
+keras==2.9.0 </br>
+streamlit==1.14.0 </br>
+scipy==1.7.3 </br>
+scikit_image </br>
+opencv-python-headless </br>
+
 
 # Cite
 If you find the Code helpful, please consider citing the preprint at: </br>
