@@ -7,8 +7,8 @@
 
 # Web-apps
 * Web-apps were deployed: <br/> 
-&nbsp; - Using 2D grayscale medical slices is [here](https://kenanmorani-covid-19deployment-pipeline-app-82q4v6.streamlit.app/)   
-&nbsp; - Using full CT scan slices is [here](https://kenanmorani-covid-19deployment-patient-level-predictions-d37izn.streamlit.app/)
+&nbsp; - Using single 2D grayscale medical slice [here](https://kenanmorani-covid-19deployment-pipeline-app-82q4v6.streamlit.app/)   
+&nbsp; - Using full CT scan [here](https://kenanmorani-covid-19deployment-patient-level-predictions-d37izn.streamlit.app/)
 
 # Dependencies
 numpy==1.21.6 </br>
