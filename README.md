@@ -5,8 +5,10 @@
 * The segmentation part can be found [here](https://github.com/IDU-CVLab/Images_Preprocessing_2nd). 
 * In the classification part, a Convolutional Neural Network (CNN) was used to take the final diagnosis decisions.
 
-# Web-app
-* The model is already deployed using streamlit for prediciton using 2D grayscale images at slices level [here](https://kenanmorani-covid-19deployment-pipeline-app-82q4v6.streamlit.app/)
+# Web-apps
+* web-apps for COVID-19 diagnosis with are deployed: <br/> 
+&nbsp; - Using 2D grayscale medical slices is [here](https://kenanmorani-covid-19deployment-pipeline-app-82q4v6.streamlit.app/)   
+&nbsp; - Using full CT scan slices is [here](https://kenanmorani-covid-19deployment-patient-level-predictions-d37izn.streamlit.app/)
 
 # Dependencies
 numpy==1.21.6 </br>
