@@ -690,9 +690,12 @@ print ("median value is", mdd)
 
 
 
-###############################################################################################3
-#################################### STAGE 2 LUNG EXCTRACTION #############################
-###############################################################################
+
+
+
+#############################################################
+########################  Stage 2 : LUNG EXCTRACTION
+##################################################################################
 
 
 #UNet_model = tf.keras.models.load_model('/home/idu/Desktop/COV19D/segmentation/UNet_model.h5')
@@ -892,10 +895,10 @@ for fldr in os.listdir(folder_path):
             #print (directory,'',file_name)
             n = []
             image = []
-
-########################################### Slice Removal After Lung Exctraction (OPtional) 
-
             
+
+################### Slice Removal After Lung Exctraction (Optional)
+
 import skimage
 from skimage import color, filters
 import numpy as np
@@ -1077,13 +1080,17 @@ for fldr in os.listdir(folder_path):
             img_cropped = array_to_img (img_cropped)
             img_cropped.save(str(file_path), 'JPEG')
              #print('saved')
-            #count = []
 
 
 
-######################################################################################
-########################################### STAGE 3 CLASSIFICATION 
-#####################################################################################
+
+
+
+#############################################################
+########################  Stage 3 : CLASSIFICAIOTN 
+##################################################################################
+
+
 
 # Using imagedatagenerator
 
