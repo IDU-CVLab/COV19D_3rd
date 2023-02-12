@@ -1,4 +1,10 @@
 # -*- KENAN MORANI - IZMIR DEMOCRACY UNIVERSITY -*-
+#### COV19-CT DB Database #####
+### part of IEEE ICASSP 2023: AI-enabled Medical Image Analysis Workshop and Covid-19 Diagnosis Competition (AI-MIA-COV19D)
+### at https://mlearn.lincoln.ac.uk/icassp-2023-ai-mia/
+#### B. 3rd COV19D Competition ---- I. Covid-19 Detection Challenge
+#### kenan.morani@gmail.com 
+
 
 # Importing Libraries
 import os, glob
@@ -31,10 +37,15 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow import keras
 from PIL import Image
 
-##^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-##^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-##^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Stage 1 : UNET MODEL BUILDING #########
-##^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+from tensorflow.keras import layers
+from tensorflow.keras.layers import Conv2D, Dropout, BatchNormalization, Activation, MaxPool2D, Conv2DTranspose, Concatenate, Input
+from tensorflow.keras.models import Model
+from tensorflow.keras.applications import VGG16
+
+
+####################################################################################################
+####################### Processing : Slicing and Saving Exctracted Slices from 3D Images [If required] #########
+###############################################################################
 
 """# Slicing and Saving"""
 
@@ -44,7 +55,7 @@ dataInputPath = '/home/idu/Desktop/COV19D/segmentation/volumes'
 imagePathInput = os.path.join(dataInputPath, 'img/') ## Image volumes were exctracted to this subfolder
 maskPathInput = os.path.join(dataInputPath, 'mask/') ## lung masks were exctracted to this subfolder
 
-# Preparing the outputpath for slicing the CT volume from the above data
+# Preparing the outputpath for slicing the CT volume from the above data++++
 dataOutputPath = '/home/idu/Desktop/COV19D/segmentation/slices/'
 imageSliceOutput = os.path.join(dataOutputPath, 'img/') ## Image volume slices will be placed here
 maskSliceOutput = os.path.join(dataOutputPath, 'mask/') ## Annotated masks slices will be placed here
@@ -155,8 +166,8 @@ plt.show()
 ### Setting the training and testing dataset for validation of the proposed VGG16-UNET model
 ### All t0&t1 Z-sliced slices (images and masks) were used for testing
 
-BATCH_SIZE_TRAIN = 32
-BATCH_SIZE_TEST = 32
+#BATCH_SIZE_TRAIN = 32
+#BATCH_SIZE_TEST = 32
 
 IMAGE_HEIGHT = 224
 IMAGE_WIDTH = 224
@@ -178,12 +189,19 @@ data_dir_test_image = os.path.join(data_dir_test, 'img')
 # The images should be stored under: "data/slices/test/mask/img"
 data_dir_test_mask = os.path.join(data_dir_test, 'mask')
 
+BATCH_SIZE = 64
+
+def orthogonal_rot(image):
+    return np.rot90(image, np.random.choice([-1, 0, 1]))
+
+    
 
 def create_segmentation_generator_train(img_path, msk_path, BATCH_SIZE):
     data_gen_args = dict(rescale=1./255,
                       featurewise_center=True,
                       featurewise_std_normalization=True,
                       rotation_range=90,
+                      preprocessing_function=orthogonal_rot,
                       width_shift_range=0.2,
                       height_shift_range=0.2,
                       zoom_range=0.3
@@ -203,12 +221,14 @@ def create_segmentation_generator_test(img_path, msk_path, BATCH_SIZE):
     msk_generator = datagen.flow_from_directory(msk_path, target_size=IMG_SIZE, class_mode=None, color_mode='grayscale', batch_size=BATCH_SIZE, seed=SEED)
     return zip(img_generator, msk_generator)
 
+BATCH_SIZE_TRAIN = BATCH_SIZE_TEST = BATCH_SIZE
+SEED = 44
 train_generator = create_segmentation_generator_train(data_dir_train_image, data_dir_train_mask, BATCH_SIZE_TRAIN)
 test_generator = create_segmentation_generator_test(data_dir_test_image, data_dir_test_mask, BATCH_SIZE_TEST)
 
 
-NUM_TRAIN = 745
-NUM_TEST = 84
+NUM_TRAIN = 2*745
+NUM_TEST = 2*84
 
 ## Choosing number of training epoches
 NUM_OF_EPOCHS = 20
@@ -229,25 +249,175 @@ def show_dataset(datagen, num=1):
         image,mask = next(datagen)
         display([image[0], mask[0]])
 
-show_dataset(train_generator, 4)
+show_dataset(test_generator, 2)
 
-EPOCH_STEP_TRAIN = 6*NUM_TRAIN // BATCH_SIZE_TRAIN
-EPOCH_STEP_TEST = NUM_TEST // BATCH_SIZE_TEST
 
-"""# UNet Model"""
 
-from tensorflow.keras.layers import Conv2D, Dropout, BatchNormalization, Activation, MaxPool2D, Conv2DTranspose, Concatenate, Input
-from tensorflow.keras.models import Model
-from tensorflow.keras.applications import VGG16
 
-SIZE = 224
-IMAGE_HEIGHT = SIZE
-IMAGE_WIDTH = SIZE
 
-#### UNET NETWORK
+
+#############################################################
+########################  Stage 1 : SEGMENTAITON
+##################################################################################
+
+
+############ K-Means Clustering Based Segmetnation [Selective]
+
+def extract_lungs(mask):
+    kernel = np.ones((5,5),np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    return mask
+
+def kmeans_segmentation(image):
+    Z = image.reshape((-1,1))
+    Z = np.float32(Z)
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    K = 2
+    ret,label,center=cv2.kmeans(Z,K,None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
+    center = np.uint8(center)
+    res = center[label.flatten()]
+    segmented_image = res.reshape((image.shape))
+    return segmented_image
+
+def segment_and_extract_lungs(image):
+    segmented_image = kmeans_segmentation(image)
+    binary_mask = np.zeros(image.shape, dtype=np.uint8)
+    binary_mask[segmented_image == segmented_image.min()] = 1
+    binary_mask = extract_lungs(binary_mask)
+    lung_extracted_image = np.zeros(image.shape, dtype=np.uint8)
+    lung_extracted_image[binary_mask == 1] = image[binary_mask == 1]
+    return lung_extracted_image
+
+# Modify here to run the code on all the required slices
+input_folder = "/home/idu/Desktop/COV19D/train/non-covid"
+output_folder = "/home/idu/Desktop/COV19D/train-seg1/non-covid"
+
+
+if not os.path.exists(output_folder):
+    os.makedirs(output_folder)
+
+for subdir, dirs, files in os.walk(input_folder):
+    for file in files:
+        image_path = os.path.join(subdir, file)
+        if '.jpg' in image_path:
+            image = cv2.imread(image_path, 0)
+            lung_extracted_image = segment_and_extract_lungs(image)
+            subfolder_name = subdir.split('/')[-1]
+            subfolder_path = os.path.join(output_folder, subfolder_name)
+            if not os.path.exists(subfolder_path):
+                os.makedirs(subfolder_path)
+            output_path = os.path.join(subfolder_path, file)
+            cv2.imwrite(output_path, lung_extracted_image)
+
+
+################# Remove Non-representative Slices [optional]
+
+def check_valid_image(image):
+    return cv2.countNonZero(image) > 1764 # Choose a threshold for removal
+
+input_folder = "/home/idu/Desktop/COV19D/train-seg/non-covid"
+output_folder = "/home/idu/Desktop/COV19D/train-seg-sliceremove/non-covid"
+
+if not os.path.exists(output_folder):
+    os.makedirs(output_folder)
+
+for subdir, dirs, files in os.walk(input_folder):
+    subfolder_name = subdir.split('/')[-1]
+    subfolder_path = os.path.join(output_folder, subfolder_name)
+    if not os.path.exists(subfolder_path):
+        os.makedirs(subfolder_path)
+    count = 0
+    for file in files:
+        image_path = os.path.join(subdir, file)
+        if '.jpg' in image_path:
+            image = cv2.imread(image_path, 0)
+            if check_valid_image(image):
+                count += 1
+                output_path = os.path.join(subfolder_path, file)
+                cv2.imwrite(output_path, image)
+    if count == 0:
+        print(f"No valid images were found in subfolder: {subfolder_name}")
+
+
+
+# calculating average, min and max dice coeffecient on the test set
+GT_path = '/home/idu/Desktop/COV19D/segmentation/slices/test/mask/img'   
+pred_path = '/home/idu/Desktop/COV19D/segmentation/slices/test/img/img'
+
+### Mean IoU & Dice COeffecient Measures
+
+# specify the img directory path
+#path = "path/to/img/folder/"
+
+# list files in img directory
+files = os.listdir(GT_path)
+files2 = os.listdir(pred_path)
+print(files)
+
+from skimage.feature import canny
+from skimage import data,morphology
+from skimage.color import rgb2gray
+import scipy.ndimage as nd
+
+
+mean_iou = []
+dicee = []
+dim = (224,224)
+num_classes = 2
+for file in files:
+    # make sure file is an image
+      for filee in files2:
+        if str(filee) == str(file):
+          ## Ground Truth Mask
+          p1 = os.path.join(GT_path, file)
+          print(p1)
+          img = cv2.imread(p1 , 0)      
+          img = cv2.resize(img, dim)
+          edges = canny(img)
+          img = nd.binary_fill_holes(edges)
+          elevation_map = sobel(img)
+          # Since, the contrast difference is not much. Anyways we will perform it
+          markers = np.zeros_like(img)
+          markers[img < 0.1171875] = 1 # 30/255
+          markers[img > 0.5859375] = 2 # 150/255
+          segmentation = morphology.watershed(elevation_map, markers)
+          #img = img / 255.0
+          #imgg = img
+          
+                   #img = numpy.bool(img)
+          #img = np.asarray(img).astype(np.bool)
+
+          ## Predicted mask
+          #p2 = os.path.join(pred_path, filee)
+          #img2 = cv2.imread(p2, 0)
+          #img2= cv2.resize(img2, dim)
+          #img2 = img2 / 255.0
+          #img2 = img2[None]
+          #img2 = np.expand_dims(img2, axis=-1)
+          #img2 = UNet_model.predict(img2) > 0.5
+          #imgg2 = UNet_model.predict(img2) #> 0.5
+          #imgg2 = imgg2.astype(numpy.float64)
+          #img2 = np.squeeze(img2)
+          #imgg2 = np.squeeze(imgg2)
+          #d = dtype(image)
+          #print(d)
+          #img2 = np.asarray(img2).astype(np.bool)
+          
+          IOU_keras = MeanIoU(num_classes=num_classes)
+          IOU_keras.update_state(img, segmentation)
+          print("Mean IoU =", IOU_keras.result().numpy())
+          mean_iou.append(IOU_keras.result().numpy())
+
+          value = dice_coef(img, segmentation)
+          print("Dice coeffecient value is", value, "\n") 
+          dicee.append(value)
+          
+          
+############ UNET Based Segemtnation 
 
 # Building 2D-UNET model
-def unet(n_levels, initial_features=32, n_blocks=2, kernel_size=3, pooling_size=2, in_channels=1, out_channels=1):
+def unet(n_levels, initial_features=64, n_blocks=2, kernel_size=5, pooling_size=2, in_channels=1, out_channels=1):
     inputs = keras.layers.Input(shape=(IMAGE_HEIGHT, IMAGE_WIDTH, in_channels))
     x = inputs
     
@@ -277,44 +447,54 @@ def unet(n_levels, initial_features=32, n_blocks=2, kernel_size=3, pooling_size=
     
     return keras.Model(inputs=[inputs], outputs=[x], name=f'UNET-L{n_levels}-F{initial_features}')
 
-## Making the UNet model with different depth levels
-UNet_model = unet(2)  # 2-level depth UNet model
-#UNet_model = unet(3)  # 3-level depth UNet model
+## Choosing UNet depth 
+#UNet_model = unet(2)  # 2-level depth UNet model
+UNet_model = unet(3)  # 3-level depth UNet model
 #UNet_model = unet(4)# # 4-level depth UNet model
 
 UNet_model.summary()
 
-### Hyperparameters tuning
-    
+# Hyperparameters tuning
+   
 from tensorflow.keras.metrics import MeanIoU 
+import math
 
 initial_learning_rate = 0.1
 def lr_exp_decay(epoch, lr):
     k = 1
     return initial_learning_rate * math.exp(-k*epoch)
 
-import math
+early_stopping = tf.keras.callbacks.EarlyStopping(
+    monitor="val_loss",
+    patience=3,
+    #verbose=1,
+    #mode="auto",
+    #baseline=None,
+    #restore_best_weights=False,
+)
 
-from tensorflow.keras.metrics import MeanIoU 
+EPOCH_STEP_TRAIN = 2*12*NUM_TRAIN // BATCH_SIZE_TRAIN
+EPOCH_STEP_TEST = 2*NUM_TEST // BATCH_SIZE_TEST 
 
 UNet_model.compile(optimizer='adam', 
               loss='binary_crossentropy', 
-              metrics=[#tf.keras.metrics.Precision(), tf.keras.metrics.Recall(), 
-                      tf.keras.metrics.MeanIoU(num_classes = 2),
+              metrics=[tf.keras.metrics.Precision(), tf.keras.metrics.Recall(), 
+                      #tf.keras.metrics.MeanIoU(num_classes = 2),
                       'accuracy'])
+NUM_OF_EPOCHS = 20
 UNet_model.fit_generator(generator=train_generator, 
                     steps_per_epoch=EPOCH_STEP_TRAIN, 
                     validation_data=test_generator, 
                     validation_steps=EPOCH_STEP_TEST,
                     epochs=NUM_OF_EPOCHS,
-                    callbacks=[tf.keras.callbacks.LearningRateScheduler(lr_exp_decay, verbose=1)]
+                    callbacks=[early_stopping, tf.keras.callbacks.LearningRateScheduler(lr_exp_decay, verbose=1)]
                     )
 
 #Evaluating the UNet models on the test partition
-UNet_model.evaluate(test_generator, steps=EPOCH_STEP_TEST)
+UNet_model.evaluate(test_generator, batch_size=128, steps=EPOCH_STEP_TEST)
 
 #Saving the UNet model models with different depth levels and batch norm()
-UNet_model.save('/home/idu/Desktop/COV19D/segmentation/UNet_model.h5')
+UNet_model.save('/home/idu/Desktop/COV19D/segmentation/UNet_model-depth3-128batch-kernal5.h5')
 
 #Loading saved models
 UNet_model = keras.models.load_model('/home/idu/Desktop/COV19D/segmentation/UNet_model-3L-BatchNorm.h5')
@@ -357,32 +537,51 @@ print("test loss, test acc:", results)
 for name, value in zip(UNet_model.metrics_names, results):
     print(name, ':', value)
 
-        
+import cv2 as cv      
   ## Segmenting images based on k-means clustering and exctracting lung regions and saving them 
 #in the same directory as the original images (in .png format)
   
 path = '/home/idu/Desktop/COV19D/segmentation/Segmentation Results/'
+kernel = np.ones((5,5),np.float32)
+
 def show_prediction(datagen, num=1):
     for i in range(0,num):
         image,mask = next(datagen)
         pred_mask = UNet_model.predict(image)[0] > 0.5
+        print(pred_mask.dtype)
+        #pred_mask = pred_mask.astype(np.float32)
+        #pred_mask = pred_mask*255
+        print(pred_mask.dtype)
+        #pred_mask = pred_mask[None] 
+        #pre_mask = np.squeeze(pred_mask, axis=0)
+        #pred_mask = np.expand_dims(pred_mask, axis=0)
+        print(pred_mask.dtype)
+        #pred_mask = cv.dilate(pred_mask, kernel, iterations = 1)
+        
+        #pred_mask = Image.fromarray(pred_mask, 'L')
+        #pred_mask = pred_mask.convert('LA')
+        #pred_mask = np.expand_dims(pred_mask, axis=-1)
+        #pred_mask.show()
         display([image[0], mask[0], pred_mask])        
-        num_classes = 2
-        IOU_keras = MeanIoU(num_classes=num_classes)  
-        IOU_keras.update_state(mask[0], pred_mask)
-        print("Mean IoU =", IOU_keras.result().numpy())
+        #num_classes = 2
+        #IOU_keras = MeanIoU(num_classes=num_classes)
+        #IOU_keras.update_state(mask[0], pred_mask)
+        #print("Mean IoU =", IOU_keras.result().numpy())
+        #mean_iou1.append(IOU_keras.result().numpy())
 
-        values = np.array(IOU_keras.get_weights()).reshape(num_classes, num_classes)
-        print(values) 
+        #values = np.array(IOU_keras.get_weights()).reshape(num_classes, num_classes)
+        #print(values) 
         
 
-show_prediction(test_generator, 12)  
-  
-## calculating average, min and max dice coeffecient on the test set
+show_prediction(test_generator, 2)  
+
+
+# calculating average, min and max dice coeffecient on the test set
 GT_path = '/home/idu/Desktop/COV19D/segmentation/slices/test/mask/img'   
 pred_path = '/home/idu/Desktop/COV19D/segmentation/slices/test/img/img'
 
-import os
+# Mean IoU & Dice COeffecient Measures
+
 
 # specify the img directory path
 #path = "path/to/img/folder/"
@@ -392,7 +591,30 @@ files = os.listdir(GT_path)
 files2 = os.listdir(pred_path)
 print(files)
 
+from tensorflow.keras import backend as K
+
+
+def dice_coef(img, img2):
+        if img.shape != img2.shape:
+            raise ValueError("Shape mismatch: img and img2 must have to be of the same shape.")
+        else:
+            
+            lenIntersection=0
+            
+            for i in range(img.shape[0]):
+                for j in range(img.shape[1]):
+                    if ( np.array_equal(img[i][j],img2[i][j]) ):
+                        lenIntersection+=1
+             
+            lenimg=img.shape[0]*img.shape[1]
+            lenimg2=img2.shape[0]*img2.shape[1]  
+            value = (2. * lenIntersection  / (lenimg + lenimg2))
+        return value
+    
+mean_iou = []
 dicee = []
+dim = (224,224)
+num_classes = 2
 for file in files:
     # make sure file is an image
       for filee in files2:
@@ -403,6 +625,10 @@ for file in files:
           img = cv2.imread(p1 , 0)      
           img = cv2.resize(img, dim)
           img = img / 255.0
+          #imgg = img
+          
+          #img = img > 0.5
+          #img = numpy.bool(img)
           #img = np.asarray(img).astype(np.bool)
 
           ## Predicted mask
@@ -413,36 +639,61 @@ for file in files:
           img2 = img2[None]
           img2 = np.expand_dims(img2, axis=-1)
           img2 = UNet_model.predict(img2) > 0.5
+          #imgg2 = UNet_model.predict(img2) #> 0.5
+          #imgg2 = imgg2.astype(numpy.float64)
           img2 = np.squeeze(img2)
+          #imgg2 = np.squeeze(imgg2)
+          #d = dtype(image)
+          #print(d)
           #img2 = np.asarray(img2).astype(np.bool)
+          
+          IOU_keras = MeanIoU(num_classes=num_classes)
+          IOU_keras.update_state(img, img2)
+          print("Mean IoU =", IOU_keras.result().numpy())
+          mean_iou.append(IOU_keras.result().numpy())
 
           value = dice_coef(img, img2)
           print("Dice coeffecient value is", value, "\n") 
           dicee.append(value)
+
+
+UNet_model.summary()
+#print (img)
+#print(img2)
           
 dicee = np.array(dicee)
 
-L = len(dicee)
-print("Number of Values is", len)
+L = len(mean_iou)
+print("Number of Values is", L)
 
 # Taking average of dice values
-av=np.mean(dicee)
-print ("average dice values is", av)
+av=np.mean(mean_iou)
+avv=np.mean(dicee)
+print ("average value is", av)
+print ("average value is", avv)
 
 # Taking maximuim and minimuim of dice values
-mx=np.max(dicee)
-print ("maximuim dice values is", mx)
+mx=np.max(mean_iou)
+mxx=np.max(dicee)
+print ("maximuim value is", mx)
+print ("maximuim value is", mxx)
 
-mn=np.min(dicee)
-print ("minimuim dice values is", mn)
+mn=np.min(mean_iou)
+mnn=np.min(dicee)
+print ("minimuim value is", mn)
+print ("minimuim value is", mnn)
+
+md=np.median(mean_iou)
+mdd=np.median(dicee)
+print ("median value is", md)
+print ("median value is", mdd)
 
 
 
+###############################################################################################3
+#################################### STAGE 2 LUNG EXCTRACTION #############################
+###############################################################################
 
-####################^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-####################^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-####################^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ STAGE 2 LUNG EXCTRACTION #^^^^^^^^^^^^^^^^^^^^^^^
-#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 #UNet_model = tf.keras.models.load_model('/home/idu/Desktop/COV19D/segmentation/UNet_model.h5')
 
@@ -546,24 +797,27 @@ selem = disk(10)
 binary = binary_closing(binary, selem)
 plt.imshow(binary)
 
-#Fill in the small holes inside the binary mask of lungs
+# Fill in the small holes inside the binary mask of lungs
 edges = roberts(binary)
 binary = ndi.binary_fill_holes(edges)
 plt.imshow(binary)
 
-## Superimposing the binary image on the original image
+# Superimposing the binary image on the original image
 #binary = int(binary)
 binary=binary.astype(np.uint8)
 final = cv2.bitwise_and(n1, n1, mask=binary)
 plt.imshow(final)
 
+#h = 255
+#w = 298
 dim = (224, 224)
+dim = (h, w)
 
 #kernel = np.ones((5, 5), np.uint8)
 
 ### Exctracting for all CT image in COV19-CT-DB
 folder_path = '/home/idu/Desktop/COV19D/validation/non-covid' # Changoe this directory to loop over all training, validation and testing images
-directory = '/home/idu/Desktop/COV19D/val-seg5/non-covid'  # Changoe this directory to save the lung segmented images in the appropriate bath syncronizing with line above
+directory = '/home/idu/Desktop/COV19D/val-seg/non-covid'  # Changoe this directory to save the lung segmented images in the appropriate bath syncronizing with line above
 for fldr in os.listdir(folder_path):
         sub_folder_path = os.path.join(folder_path, fldr)
         dir = os.path.join(directory, fldr)
@@ -639,16 +893,8 @@ for fldr in os.listdir(folder_path):
             n = []
             image = []
 
+########################################### Slice Removal After Lung Exctraction (OPtional) 
 
-
-####################^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-####################^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-####################^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ STAGE 3 CLASSIFICATION #^^^^^^^^^^^^^^^^^^^^^^^
-#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-####################^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-####################^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Slice Removal (OPtional) #^^^^^^^^^^^^^^^^^^^^^^^
-#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
             
 import skimage
 from skimage import color, filters
@@ -680,20 +926,37 @@ from sklearn.utils import class_weight
 from collections import Counter
 
 #from tensorflow.keras.models import model_from_json
-from keras.callbacks import ModelCheckpoint
+#from keras.callbacks import ModelCheckpoint
 
 
-file_path1 = '/home/idu/Desktop/COV19D/ct_scan165/0.jpg'
-file_path4 = '/home/idu/Desktop/COV19D/ct_scan165/40.jpg'
-file_path2 = '/home/idu/Desktop/COV19D/ct_scan165/110.jpg'
-file_path3 = '/home/idu/Desktop/COV19D/ct_scan165/235.jpg'
-file_path5 = '/home/idu/Desktop/COV19D/ct_scan165/185.jpg'
+file_path1 = '/home/idu/Desktop/COV19D/train-seg/non-covid/ct_scan931/0.jpg'
+file_path2 = '/home/idu/Desktop/COV19D/train-seg/non-covid/ct_scan931/40.jpg'
+file_path3 = '/home/idu/Desktop/COV19D/train-seg/non-covid/ct_scan931/380.jpg'
+file_path4 = '/home/idu/Desktop/COV19D/train-seg/non-covid/ct_scan931/420.jpg'
+file_path5 = '/home/idu/Desktop/COV19D//train-seg/non-covid/ct_scan165/185.jpg'
 
 n1 = cv2.imread(file_path1, 0)
-n4 = cv2.imread(file_path4, 0)
+n11 = n1.astype(float)
+n11 /= 255.0 # Normallization
+n_zeros = np.count_nonzero(n11==0)
+n_zeros
+
 n2 = cv2.imread(file_path2, 0)
+n22 = n1.astype(float)
+n22 /= 255.0 # Normallization
+n_zeros = np.count_nonzero(n22==0)
+n_zeros
+
 n3 = cv2.imread(file_path3, 0)
+n33 = n1.astype(float)
+n33 /= 255.0 # Normallization
+n_zeros = np.count_nonzero(n33)
+n_zeros
+
+n4 = cv2.imread(file_path4, 0)
+n4 /= 255.0 # Normallization
 n5 = cv2.imread(file_path5, 0)
+n5 /= 255.0 # Normallization
 
 dim = (224, 224)
 #n1 = cv2.resize(n1, dim)
@@ -710,7 +973,13 @@ dim = (224, 224)
 #n2 = n2 * 10000.0
 #n3 = n3 * 10000.0
 
-hist,bins = np.histogram(n1.flatten(),256,[0,256])
+histr = cv2.calcHist([n33],[0],None,[256],[0,256])
+histr = np.histogram(n33)
+plt.plot(histr)
+plt.show()
+hist,bins = np.histogram(n1.ravel(),256,[0,256])
+plt.hist(n1.ravel(),256,[0,256])
+plt.show()
 plt.plot(hist, color = 'b')
 
 hist,bins = np.histogram(n2.flatten(),256,[0,256])
@@ -722,7 +991,7 @@ plt.plot(hist, color = 'b')
 
 # None-representative 
 ## [Uppermost]
-count1 = np.count_nonzero(n1)
+count1 = np.count_nonzero(n11)
 print(count1)
 
 count4 = np.count_nonzero(n4)
@@ -739,46 +1008,98 @@ print(count5)
 count2 = np.count_nonzero(n2)
 print(count2)
 
-### Chosen threshod is 3500 out of 224*224 = 50176
+            cv2.imwrite(output_path, lung_extracted_image)
+
+
+################# Slice Removal Using ChatGPT [optional]
+
+
+def check_valid_image(image):
+    return cv2.countNonZero(image) > 1764  # Choose a threshold for Removal
+
+input_folder = "/home/idu/Desktop/COV19D/train-seg/covid"
+output_folder = "/home/idu/Desktop/COV19D/train-seg-sliceremove/covid"
+
+if not os.path.exists(output_folder):
+    os.makedirs(output_folder)
+
+for subdir, dirs, files in os.walk(input_folder):
+    subfolder_name = subdir.split('/')[-1]
+    subfolder_path = os.path.join(output_folder, subfolder_name)
+    if not os.path.exists(subfolder_path):
+        os.makedirs(subfolder_path)
+    count = 0
+    for file in files:
+        image_path = os.path.join(subdir, file)
+        if '.jpg' in image_path:
+            image = cv2.imread(image_path, 0)
+            if check_valid_image(image):
+                count += 1
+                output_path = os.path.join(subfolder_path, file)
+                cv2.imwrite(output_path, image)
+    if count == 0:
+        print(f"No valid images were found in subfolder: {subfolder_name}")
+
+
+################################# Slice Cropping [optional]
+
+img = cv2.imread('/home/idu/Desktop/COV19D/train-seg-removal/non-covid/ct_scan882/117.jpg')
+img = skimage.color.rgb2gray(img)
+r = cv2.selectROI(img)
+
 
 count = []
-folder_path = '/home/idu/Desktop/COV19D/train-seg4/covid' 
+folder_path = '/home/idu/Desktop/COV19D/train-seg-removal-crop/non-covid' 
 #Change this directory to the directory where you need to do preprocessing for images
 #Inside the directory must folder(s), which have the images inside them
 for fldr in os.listdir(folder_path):
         sub_folder_path = os.path.join(folder_path, fldr)
-        files_left = len(directory) # get initial count
         for filee in os.listdir(sub_folder_path):
             file_path = os.path.join(sub_folder_path, filee)
-            img = cv2.imread(file_path, 0)
-            count = np.count_nonzero(img)  ### COunting number of bright pixels in the binarized slices
-            #print(count)
-            if count > 2500:  ## The threshold 1500 or 2500
-             img = np.expand_dims(img, axis=2)
-             img = array_to_img (img)
-               # Replace images with the image that includes ROI
-             img.save(file_path, 'JPEG')
+            img = cv2.imread(file_path)
+            #Grayscale images
+            img = skimage.color.rgb2gray(img) 
+            # First cropping an image
+            #%r = cv2.selectROI(im) 
+            #Select ROI from images before you start the code 
+            #Reference: https://learnopencv.com/how-to-select-a-bounding-box-roi-in-opencv-cpp-python/
+            #{Last access 15th of Dec, 2021}
+            # Crop image using r
+            img_cropped = img[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
+            # Thresholding and binarizing images
+            # Reference: https://datacarpentry.org/image-processing/07-thresholding/
+            #{Last access 15th of Dec, 2021}
+            # Gussian Filtering
+            #img = skimage.filters.gaussian(img_cropped, sigma=1.0)
+            # Binarizing the image         
+            # Replace images with the image that includes ROI
+            img_cropped = np.expand_dims(img_cropped, axis=2)
+            img_cropped = array_to_img (img_cropped)
+            img_cropped.save(str(file_path), 'JPEG')
              #print('saved')
-            else:
-             if files_left > 1: # check if you should remove
-                os.remove(file_path)
-                files_left -= 1
-            if not os.listdir(sub_folder_path):
-              print(sub_folder_path, "Directory is empty")
-            count = []
+            #count = []
 
 
-### Using imagedatagenerator to generate images
+
+######################################################################################
+########################################### STAGE 3 CLASSIFICATION 
+#####################################################################################
+
+# Using imagedatagenerator
+
+batch_size = 128
+
 h= 224
 w=224
-batch_size = 128
-height = h
-width = w = 224
+height = h 
+width = w = 224 
+w = 152 # After cropping
+h = 104 # After cropping
 train_datagen = ImageDataGenerator(rescale=1./255, 
                               vertical_flip=True,
                               horizontal_flip=True)
 train_generator = train_datagen.flow_from_directory(
-        '/home/idu/Desktop/COV19D/train-seg5/',  ## COV19-CT-DB Training set
+        '/home/idu/Desktop/COV19D/train-seg-sliceremove/',  ## COV19-CT-DB Training set
         target_size=(h, w),
         batch_size=batch_size,
         color_mode='grayscale',
@@ -787,14 +1108,39 @@ train_generator = train_datagen.flow_from_directory(
 
 val_datagen = ImageDataGenerator(rescale=1./255)
 val_generator = val_datagen.flow_from_directory(
-        '/home/idu/Desktop/COV19D/val-seg5/',  ## COV19-CT-DB Validation set
+        '/home/idu/Desktop/COV19D/val-seg-sliceremove/',  ## COV19-CT-DB Validation set
         target_size=(h, w),
         batch_size=batch_size,
         color_mode='grayscale',
         classes = ['covid','non-covid'],
         class_mode='binary')
 
-#### The CNN model
+#################### Transfer Learnign Classificaiton Approach
+
+# Images must be 3 w
+Model_Xcep = tf.keras.applications.xception.Xception(include_top=False, weights='imagenet', input_shape=(h, w, 3))
+
+for layer in Model_Xcep.layers:
+	layer.trainable = False
+
+
+model = tf.keras.Sequential([
+    Model_Xcep, 
+    tf.keras.layers.GlobalAveragePooling2D(), 
+    tf.keras.layers.Dense(128, activation='relu'),
+    tf.keras.layers.BatchNormalization(), 
+    tf.keras.layers.Dropout(0.2), 
+    tf.keras.layers.Dense(1, activation='sigmoid')
+])
+model.summary()
+
+
+h = 224
+w = 224
+
+h=w=512
+
+##################### CNN model Classidier Approach
 
 def make_model():
    
@@ -829,7 +1175,7 @@ def make_model():
     model.add(layers.Dense(256))
     model.add(layers.BatchNormalization())
     model.add(layers.ReLU())
-    model.add(layers.Dropout(0.1))
+    model.add(layers.Dropout(0.3))
     
     # Dense Layer  
     model.add(layers.Dense(1, activation='sigmoid'))
@@ -840,16 +1186,38 @@ def make_model():
 model = make_model()
 
 ## Choosing number of epoches
-n_epochs= 60
+n_epochs= 40
 
-# Compiling the model using SGD optimizer with a learning rate schedualer
+###Learning Rate decay
+def decayed_learning_rate(step):
+  return initial_learning_rate * decay_rate ^ (step / decay_steps)
+
+# Compiling the model 
 model.compile(loss='binary_crossentropy',
               optimizer=tf.keras.optimizers.SGD(learning_rate=lr_schedule),
               metrics=[tf.keras.metrics.Precision(),tf.keras.metrics.Recall(),'accuracy'])
 
-early_stopping_cb = keras.callbacks.EarlyStopping(monitor="val_accuracy", patience=7)
 
-###Learning Rate decay
+model.compile(optimizer='adam', 
+              loss='binary_crossentropy', 
+              metrics=[tf.keras.metrics.Precision(), tf.keras.metrics.Recall(), 
+                                  'accuracy'])
+
+
+early_stopping = keras.callbacks.EarlyStopping(monitor="val_accuracy", patience=7)
+
+
+initial_learning_rate = 0.1
+#initial_learning_rate = 0.00000123
+def lr_exp_decay(epoch, lr):
+    k = 1
+    return initial_learning_rate * math.exp(-k*epoch)
+
+
+# early stopping
+early_stopping_cb = keras.callbacks.EarlyStopping(monitor="val_accuracy", patience=10)
+
+#Learning Rate decay
 def decayed_learning_rate(step):
   return initial_learning_rate * decay_rate ^ (step / decay_steps)
 
@@ -860,32 +1228,38 @@ lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
     decay_rate=0.96,
     staircase=True)
 
-## Class weight (Optional)
+# saving weights
+checkpoint = ModelCheckpoint('/home/idu/Desktop/COV19D/ChatGPT-saved-models/UNet-seg-sliceremove-cnn-class.h5', save_best_only=True, save_weights_only=True)
+
+# Class weight
 counter = Counter(train_generator.classes)                          
 max_val = float(max(counter.values()))       
 class_weights = {class_id : max_val/num_images for class_id, num_images in counter.items()}  
 class_weights
 
-## Modify the number if slice removal is used
-training_steps = 434726 // batch_size 
-val_steps = 88555 // batch_size
+training_steps = 2*269309 // batch_size
+training_steps = 434726 // batch_size ## Without Slice reduction
+val_steps = 67285 // batch_size
+val_steps = 106378 // batch_size ## Without Slice reduction
 
 history=model.fit(train_generator,
-                  steps_per_epoch=training_steps,
+                  #steps_per_epoch=training_steps,
                   validation_data=val_generator,
-                  validation_steps=val_steps,
+                  #validation_steps=val_steps,
                   verbose=2,
                   epochs=n_epochs,
-                  callbacks=[early_stopping_cb], #, checkpoint],
-                  #class_weight=class_weights
-                  )
+                  callbacks=[early_stopping_cb, checkpoint],
+                  class_weight=class_weights)
+
+
                   
 # Saving the trained CNN model
-model.save('/home/idu/Desktop/COV19D/model.h5')
+model.save('/home/idu/Desktop/COV19D/UNet-kernal5-CNNmodel.h5')
 
-# LOading the CNN model
-model = keras.models.load_model('/home/idu/Desktop/COV19D/model.h5')
+# Loading the CNN model
+model = keras.models.load_model('/home/idu/Desktop/COV19D/COV19_2nd/saved models/Classification/UNet-BatchNorm-CNN-model.h5')
 
+model.evaluate(val_generator, batch_size=128)
 
 ##Evaluating the CNN model
 print (history.history.keys())
@@ -896,6 +1270,10 @@ print(np.mean(Train_accuracy))
 val_accuracy = history.history['val_accuracy']
 print(val_accuracy)
 print( np.mean(val_accuracy))
+
+val_loss = history.history['val_loss']
+print(val_loss)
+print( np.mean(val_loss))
 
 epochs = range(1, len(Train_accuracy)+1)
 plt.figure(figsize=(12,6))
@@ -940,7 +1318,7 @@ Macro_F1score
 from termcolor import colored
 
 ## Choosing the directory where the test/validation data is at
-folder_path = '/home/idu/Desktop/COV19D/val-seg3/non-covid'
+folder_path = '/home/idu/Desktop/COV19D/val-seg/non-covid'
 extensions0 = []
 extensions1 = []
 extensions2 = []
@@ -1133,4 +1511,5 @@ with open('/home/idu/Desktop/covid.csv', 'w') as f:
  wr = csv.writer(f, delimiter="\n")
  wr.writerow(coviddddd)
  
- ### KENAN MORANI - THE END OF THE CODE
+ ### KENAN MORANI - END OF THE CODE
+ ##### github.com/kenanmorani
