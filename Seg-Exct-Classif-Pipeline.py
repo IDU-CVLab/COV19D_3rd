@@ -1010,11 +1010,10 @@ print(count5)
 # Representative
 count2 = np.count_nonzero(n2)
 print(count2)
+cv2.imwrite(output_path, lung_extracted_image)
 
-            cv2.imwrite(output_path, lung_extracted_image)
 
-
-################# Slice Removal Using ChatGPT [optional]
+################# Slice Removal Using ChatGPT [optional-Recommended]
 
 
 def check_valid_image(image):
@@ -1151,7 +1150,7 @@ h=w=512
 
 def make_model():
    
-    model = tf.keras.models.Sequential()
+    model = models.Sequential()
     
     # Convulotional Layer 1
     model.add(layers.Conv2D(16,(3,3),input_shape=(h,w,1), padding="same"))
@@ -1177,12 +1176,18 @@ def make_model():
     model.add(layers.ReLU())
     model.add(layers.MaxPooling2D((2,2)))
     
+    # Convulotional Layer 5
+    model.add(layers.Conv2D(256,(3,3), padding="same"))
+    model.add(layers.BatchNormalization())
+    model.add(layers.ReLU())
+    model.add(layers.MaxPooling2D((2,2)))
+    
     # Fully Connected Layer
     model.add(layers.Flatten())
     model.add(layers.Dense(256))
     model.add(layers.BatchNormalization())
     model.add(layers.ReLU())
-    model.add(layers.Dropout(0.3))
+    model.add(layers.Dropout(0.1))  # Select drop out, recommended is either 0.1 or 0.3
     
     # Dense Layer  
     model.add(layers.Dense(1, activation='sigmoid'))
