@@ -22,7 +22,7 @@ opencv-python-headless </br>
 
 
 # Cite
-If you find the Code helpful, please consider citing the paper at: </br>
+If you find the Code helpful, please consider citing the paper: </br>
 @article{morani2022covid,   </br>
   title={COVID-19 Detection Using Segmentation, Region Extraction and Classification Pipeline},     </br>
   author={Morani, Kenan},    </br>
