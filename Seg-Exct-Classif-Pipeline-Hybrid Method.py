@@ -37,7 +37,7 @@ from keras.callbacks import ModelCheckpoint
 from skimage import color, filters
 
 from tensorflow.keras import backend as K
-from tensorflow.keras.optimizers import Adam, SGD
+from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import layers, models
 from tensorflow.keras import activations
 from tensorflow.keras.models import Sequential
@@ -550,26 +550,31 @@ def segment_and_extract_lungs(image):
     return lung_extracted_image
 
 # Modify here to run the code on all the required slices
-input_folder = "/home/idu/Desktop/COV19D/train/non-covid"
-output_folder = "/home/idu/Desktop/COV19D/train-seg1/non-covid"
-
+input_folder = "/home/idu/Desktop/COV19D/test"
+output_folder = "/home/idu/Desktop/COV19D/test-seg1"
 
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 
 for subdir, dirs, files in os.walk(input_folder):
     for file in files:
+        if not file.endswith('.jpg'):  # Check if the file is a JPEG image
+            continue
         image_path = os.path.join(subdir, file)
-        if '.jpg' in image_path:
-            image = cv2.imread(image_path, 0)
+        try:
+            image = cv2.imread(image_path, 0)  # Read the input image
             lung_extracted_image = segment_and_extract_lungs(image)
-            subfolder_name = subdir.split('/')[-1]
-            subfolder_path = os.path.join(output_folder, subfolder_name)
-            if not os.path.exists(subfolder_path):
-                os.makedirs(subfolder_path)
-            output_path = os.path.join(subfolder_path, file)
-            cv2.imwrite(output_path, lung_extracted_image)
-
+        except Exception as e:
+            print(f"Error processing {image_path}: {e}")
+            continue
+        
+        subfolder_name = os.path.basename(subdir)
+        subfolder_path = os.path.join(output_folder, subfolder_name)
+        if not os.path.exists(subfolder_path):
+            os.makedirs(subfolder_path)
+        output_path = os.path.join(subfolder_path, file)
+        cv2.imwrite(output_path, lung_extracted_image)
+        
 
 ################# Remove Non-representative Slices [optional]
 
@@ -954,7 +959,7 @@ print ("median value is", mdd)
 ##################################################################################
 
 
-#UNet_model = tf.keras.models.load_model('/home/idu/Desktop/COV19D/segmentation/UNet_model.h5')
+UNet_model = tf.keras.models.load_model('/home/idu/Desktop/COV19D/segmentation/UNet_model-3L-BatchNorm.h5')
 
 ## Comparing the results of predicted masks between public dataset and COV19-CT database
 
@@ -1056,25 +1061,52 @@ plt.imshow(final)
 #w = 298
 dim = (224, 224)
 dim = (h, w)
-
+h=w=224
 #kernel = np.ones((5, 5), np.uint8)
 
 ### Exctracting for all CT image in COV19-CT-DB
-folder_path = '/home/idu/Desktop/COV19D/validation/non-covid' # Changoe this directory to loop over all training, validation and testing images
-directory = '/home/idu/Desktop/COV19D/val-seg/non-covid'  # Changoe this directory to save the lung segmented images in the appropriate bath syncronizing with line above
+folder_path = '/home/idu/Desktop/COV19D/test/4' # Changoe this directory to loop over all training, validation and testing images
+directory = '/home/idu/Desktop/COV19D/test-seg/4'  # Changoe this directory to save the lung segmented images in the appropriate bath syncronizing with line above
 for fldr in os.listdir(folder_path):
         sub_folder_path = os.path.join(folder_path, fldr)
         dir = os.path.join(directory, fldr)
         os.mkdir(dir)
         for filee in os.listdir(sub_folder_path):
             file_path = os.path.join(sub_folder_path, filee)
-            n = cv2.imread(file_path, 0)
-            image = cv2.imread(file_path, 0)
             #cv2.imwrite('/home/idu/Desktop/COV19D/im/156.png', image1)
             #file_path11 = '/home/idu/Desktop/COV19D/im/156.png'
             #image1=cv2.imread(file_path11, 0)
-            n = cv2.resize(n, dim)
-            image = cv2.resize(image, dim)
+            ## Using "try" to avoid problems with input image slices such format problems or other issues 
+            try:
+             n = cv2.imread(file_path, 0)
+             image = cv2.imread(file_path, 0)
+             
+            except cv2.error as e:
+               # If the resize operation fails, print the error message and continue to the next image
+               if "(-215:Assertion failed) !ssize.empty()" in str(e):
+                   print(f"Skipped {file_path}: {str(e)}")
+                   continue
+               elif "name 'file_path' is not defined" in str(e):
+                 print(f"Skipped image: {str(e)}")
+                 continue
+               elif "TypeError: unsupported operand type(s) for *: 'NoneType' and 'float'" in str(e):
+                 print(f"Skipped {file_path}: {str(e)}")
+                 continue
+            try:
+             n = cv2.resize(n, dim)
+             image = cv2.resize(image, dim)
+            except cv2.error as e:
+               # If the resize operation fails, print the error message and continue to the next image
+               if "(-215:Assertion failed) !ssize.empty()" in str(e):
+                   print(f"Skipped {file_path}: {str(e)}")
+                   continue
+               elif "name 'file_path' is not defined" in str(e):
+                 print(f"Skipped image: {str(e)}")
+                 continue
+               elif "TypeError: unsupported operand type(s) for *: 'NoneType' and 'float'" in str(e):
+                 print(f"Skipped {file_path}: {str(e)}")
+                 continue
+            
             image = image * 100.0 / 255.0  ## Squeezing the histogram bins to values intensity between 0 and 100 to make it similar to the histograms in the public dataset
             image = image / 255.0
             image = image[None]
@@ -1225,11 +1257,14 @@ cv2.imwrite(output_path, lung_extracted_image)
 ################# Slice Removal Using ChatGPT [optional-Recommended]
 
 
-def check_valid_image(image):
-    return cv2.countNonZero(image) > 1764  # Choose a threshold for Removal
+def check_valid_image(image, threshold):
+    return cv2.countNonZero(image) > threshold
 
-input_folder = "/home/idu/Desktop/COV19D/train-seg/covid"
-output_folder = "/home/idu/Desktop/COV19D/train-seg-sliceremove/covid"
+input_folder = "/home/idu/Desktop/COV19D/test-seg"
+output_folder = "/home/idu/Desktop/COV19D/test-seg-sliceremove"
+initial_threshold = 1764
+first_fallback_threshold = 1000
+second_fallback_threshold = 500
 
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
@@ -1240,16 +1275,25 @@ for subdir, dirs, files in os.walk(input_folder):
     if not os.path.exists(subfolder_path):
         os.makedirs(subfolder_path)
     count = 0
+    threshold = initial_threshold
     for file in files:
         image_path = os.path.join(subdir, file)
         if '.jpg' in image_path:
             image = cv2.imread(image_path, 0)
-            if check_valid_image(image):
+            if check_valid_image(image, threshold):
                 count += 1
                 output_path = os.path.join(subfolder_path, file)
                 cv2.imwrite(output_path, image)
+            elif count == 0 and threshold == initial_threshold:  # Try again with first fallback threshold
+                threshold = first_fallback_threshold
+            elif count == 0 and threshold == first_fallback_threshold:  # Try again with second fallback threshold
+                threshold = second_fallback_threshold
+            elif count == 0:  # Keep the first image encountered if no valid image has been found
+                output_path = os.path.join(subfolder_path, file)
+                cv2.imwrite(output_path, image)
     if count == 0:
-        print(f"No valid images were found in subfolder: {subfolder_name}")
+        print(f"No valid images were found in subfolder: {subfolder_name}. Saved the first image encountered.")
+
 
 
 ################################# Slice Cropping [optional]
@@ -1482,7 +1526,7 @@ def lr_exp_decay(epoch, lr):
 
 
 # early stopping
-early_stopping_cb = keras.callbacks.EarlyStopping(monitor="val_loss", patience=5)
+early_stopping_cb = keras.callbacks.EarlyStopping(monitor="val_loss", patience=3)
 
 
 initial_learning_rate = 0.1
@@ -1493,6 +1537,7 @@ lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
     staircase=True)
 
 # saving weights
+
 checkpoint = ModelCheckpoint('/home/idu/Desktop/COV19D/ChatGPT-saved-models/UNet-seg-5Layer-cnn-class.h5', save_best_only=True, save_weights_only=True)
 
 # Class weight
@@ -1512,8 +1557,8 @@ history=model.fit(train_generator,
                   validation_data=val_generator,
                   #validation_steps=val_steps,
                   verbose=2,
-                  epochs=n_epochs,
-                  callbacks=[early_stopping_cb, checkpoint],
+                  epochs=100,
+                  callbacks=[early_stopping_cb, checkpoint, lr_schedule],#,
                   class_weight=class_weights)
 
 
@@ -1614,7 +1659,7 @@ noncovidd8 = []
 results =1
 for fldr in os.listdir(folder_path):
    if fldr.startswith("ct"):
-    sub_folder_path = os.path.join(folder_path, fldr)
+    #sub_folder_path = os.path.join(folder_path, fldr)
     for filee in os.listdir(sub_folder_path):
         file_path = os.path.join(sub_folder_path, filee)
         c = cv2.imread(file_path, 0) 
@@ -1904,7 +1949,7 @@ with open('/home/idu/Desktop/s/listt11.csv', 'w') as f:
 
 with open('/home/idu/Desktop/covid.csv', 'w') as f:
  wr = csv.writer(f, delimiter="\n")
- wr.writerow(covidd6)
+ wr.writerow(coviddddd)
 
 ####0.9 Slice level class probability
 with open('/home/idu/Desktop/noncovid.csv', 'w') as f:
