@@ -1256,12 +1256,16 @@ cv2.imwrite(output_path, lung_extracted_image)
 
 ################# Slice Removal Using ChatGPT [optional-Recommended]
 
-
 def check_valid_image(image, threshold):
     return cv2.countNonZero(image) > threshold
 
 input_folder = "/home/idu/Desktop/COV19D/test-seg"
 output_folder = "/home/idu/Desktop/COV19D/test-seg-sliceremove"
+
+## We use the initial threshold value of 1764, the first fallback threshold value of 1000, and the second fallback threshold value of 500. 
+## If no valid slices are found with the initial threshold value, the code retries with the first fallback threshold value. 
+## If no valid slices are found even with the first fallback threshold value, the code retries with the second fallback threshold value. 
+## If no valid slices are found even with the second fallback threshold value, we keep the all slices in the folder/CT; i.e. the CT scan does not change. 
 initial_threshold = 1764
 first_fallback_threshold = 1000
 second_fallback_threshold = 500
@@ -1278,22 +1282,22 @@ for subdir, dirs, files in os.walk(input_folder):
     threshold = initial_threshold
     for file in files:
         image_path = os.path.join(subdir, file)
-        if '.jpg' in image_path:
-            image = cv2.imread(image_path, 0)
-            if check_valid_image(image, threshold):
-                count += 1
-                output_path = os.path.join(subfolder_path, file)
-                cv2.imwrite(output_path, image)
-            elif count == 0 and threshold == initial_threshold:  # Try again with first fallback threshold
-                threshold = first_fallback_threshold
-            elif count == 0 and threshold == first_fallback_threshold:  # Try again with second fallback threshold
-                threshold = second_fallback_threshold
-            elif count == 0:  # Keep the first image encountered if no valid image has been found
-                output_path = os.path.join(subfolder_path, file)
-                cv2.imwrite(output_path, image)
+        if '.jpg' not in image_path:
+            continue
+        image = cv2.imread(image_path, 0)
+        if check_valid_image(image, threshold):
+            count += 1
+            output_path = os.path.join(subfolder_path, file)
+            cv2.imwrite(output_path, image)
+        elif count == 0 and threshold == initial_threshold:  # Try again with first fallback threshold
+            threshold = first_fallback_threshold
+        elif count == 0 and threshold == first_fallback_threshold:  # Try again with second fallback threshold
+            threshold = second_fallback_threshold
+        elif count == 0:  # Keep all images if no valid image has been found
+            output_path = os.path.join(subfolder_path, file)
+            cv2.imwrite(output_path, image)
     if count == 0:
-        print(f"No valid images were found in subfolder: {subfolder_name}. Saved the first image encountered.")
-
+        print(f"No valid images were found in subfolder: {subfolder_name}. All images in this subfolder will be kept.")
 
 
 ################################# Slice Cropping [optional]
