@@ -7,7 +7,7 @@
 * In the classification part, a Convolutional Neural Network (CNN) was used to take the final diagnosis decisions.
 
 # Web-apps
-* Web-apps were deployed: <br/> 
+* Web-apps were deployed using streamlit: <br/> 
 &nbsp; - from a single 2D grayscale medical slice [here](https://kenanmorani-covid-19deployment-pipeline-app-82q4v6.streamlit.app/)   
 &nbsp; - from a full CT scan image [here](https://kenanmorani-covid-19deployment-patient-level-predictions-d37izn.streamlit.app/)
 
