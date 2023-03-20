@@ -2,7 +2,7 @@
 
 # Introduction
 * This study coincides with the third run of the [IEEE ICASSP 2023: AI-enabled Medical Image Analysis Workshop and Covid-19 Diagnosis Competition (AI-MIA-COV19D)](https://mlearn.lincoln.ac.uk/icassp-2023-ai-mia/).
-* The team came fourth on the [Leasderboard](https://drive.google.com/file/d/1ATt-sqsSSaQczz-Qxj85LohwPD3T0i3W/view)
+* The team came fourth on the [Leaderboard].(https://drive.google.com/file/d/1ATt-sqsSSaQczz-Qxj85LohwPD3T0i3W/view)
 * The main purpose of this study is to propose a pipeline for COVID-19 detection from a big and challenging database of Computed Tomography (CT) images. The proposed pipeline includes a segmentation part, a region-of-interest extraction part, and a classification part. The code in this repo includes the whole pipeline.
 * The segmentation part can be found [here](https://github.com/IDU-CVLab/Images_Preprocessing_2nd). 
 * In the classification part, a Convolutional Neural Network (CNN) was used to take the final diagnosis decisions.
