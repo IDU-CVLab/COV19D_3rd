@@ -32,4 +32,4 @@ If you find the Code helpful, please consider citing the paper: </br>
 }
 
 # Colaboration
-* Please get in touch if you wish to collaborate and wish to request the pre-trained models.
+* Please get in touch if you wish to collaborate or wish to request the pre-trained models.
