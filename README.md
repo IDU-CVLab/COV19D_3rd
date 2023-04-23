@@ -31,5 +31,5 @@ If you find the Code helpful, please consider citing the paper: </br>
   year={2022}     </br>
 }
 
-# Colaboration
+# Collaboration
 * Please get in touch if you wish to collaborate or wish to request the pre-trained models.
