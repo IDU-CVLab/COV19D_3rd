@@ -1,4 +1,4 @@
-[![DOI:10.48550/arXiv.2210.02992](http://img.shields.io/badge/DOI-10.1101/2021.01.08.425840-B31B1B.svg)](https://doi.org/10.48550/arXiv.2210.02992)
+[![DOI:10.48550/arXiv.2210.02992](http://img.shields.io/badge/DOI-10.48550/arXiv.2210.02992-B31B1B.svg)](https://doi.org/10.48550/arXiv.2210.02992)
 
 # Database
 * This study coincides with the third run of the [IEEE ICASSP 2023: AI-enabled Medical Image Analysis Workshop and Covid-19 Diagnosis Competition (AI-MIA-COV19D)](https://mlearn.lincoln.ac.uk/icassp-2023-ai-mia/). An extended version of COV19-CT-DB was used.
