@@ -33,4 +33,4 @@ If you find the Code helpful, please consider citing the paper: </br>
   year={2022}     </br>
 }
 
-* Kindly inform the organization owner if you wish to obtain the pretrained models in this study
+* Kindly inform the organization owner, if you wish to obtain the pretrained models in this study
