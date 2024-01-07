@@ -11,7 +11,7 @@
 * Kindly inform the organization owner if you wish to obtain the pretrained models in this study.
 * 
 # Web-apps
-Web-apps were deployed using streamlit (you may need to wait for the application to start):  
+Web-apps were deployed using streamlit (you may need to wait for the application to start. Please refresh the page if it takes long to start the application):  
 &nbsp; - from a single 2D grayscale medical slice [here](https://kenanmorani-covid-19deployment-pipeline-app-82q4v6.streamlit.app/)   
 &nbsp; - from a full CT scan image [here](https://kenanmorani-covid-19deployment-patient-level-predictions-d37izn.streamlit.app/)
 
