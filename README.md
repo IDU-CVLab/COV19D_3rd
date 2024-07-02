@@ -1,4 +1,4 @@
-[![DOI:10.1007/978-3-031-62269-4_31](http://img.shields.io/badge/DOI-10.1007/978-3-031-62269-4_31-B31B1B.svg)](https://doi.org/10.1080/21681163.2023.2219765)   
+[![DOI:10.1007/978-3-031-62269-4_31](http://img.shields.io/badge/DOI-10.1080/21681163.2023.2219765-B31B1B.svg)](https://doi.org/10.1007/978-3-031-62269-4_31)  
 # Database
 * This study coincides with the third run of the [IEEE ICASSP 2023: AI-enabled Medical Image Analysis Workshop and Covid-19 Diagnosis Competition (AI-MIA-COV19D)](https://mlearn.lincoln.ac.uk/icassp-2023-ai-mia/). An extended version of COV19-CT-DB was used.
 * IDU-CVLab came ***fourth*** on the [Leaderboard](https://drive.google.com/file/d/1ATt-sqsSSaQczz-Qxj85LohwPD3T0i3W/view)
