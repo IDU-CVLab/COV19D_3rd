@@ -24,7 +24,9 @@ scikit_image </br>
 opencv-python-headless </br>
 
 # Cite
-@InProceedings{10.1007/978-3-031-62269-4_31,  
+If you find this work useful, kindly cite our chapter in the book proceedings:  
+
+>@InProceedings{10.1007/978-3-031-62269-4_31,  
 author="Morani, Kenan  and Ayana, Esra Kaya and Kollias, Dimitrios and Unay, Devrim",  
 editor="Arai, Kohei",  
 title="Detecting COVID-19 in Computed Tomography Images: A Novel Approach Utilizing Segmentation with UNet Architecture, Lung Extraction, and CNN Classifier",  
