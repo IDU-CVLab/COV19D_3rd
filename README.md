@@ -8,7 +8,8 @@
 * The segmentation part can be found [here](https://github.com/IDU-CVLab/Images_Preprocessing_2nd). 
 * In the classification part, a Convolutional Neural Network (CNN) was used to take the final diagnosis decisions.
 * Please see the attached paper for full details.  
-* The robustness of the method was checked by applying the framework on noise-added images of the orignal ones and validating the results using the validation partition of the data. The code for that is named "Noisey-Images-Segmentation-Classification-Framework.py".   
+* The robustness of the method was checked by applying the framework on noise-added images of the orignal ones and validating the results using the validation partition of the data. Salt-and-paper we well as Gussian noise types were used to check the robustness of our method.The code for that is named "Noisey-Images-Segmentation-Classification-Framework.py".
+   
 # Web-apps
 Web-apps were deployed using streamlit (you may need to wait for the application to start. Please refresh the page if it takes long to start the application):  
 &nbsp; - from a single 2D grayscale medical slice [here](https://kenanmorani-covid-19deployment-pipeline-app-82q4v6.streamlit.app/)   
